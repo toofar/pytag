@@ -97,8 +97,12 @@ def tags_from_file(f):
     return source_d
 
 # Python string.format() style syntax to non-greedy regexp with named capture
-# groups. See here for a less naive approach:
-# http://stackoverflow.com/questions/2654856/python-convert-format-string-to-regular-expression
+# groups. Crazy regex replace is so that {{ doesn't get converted
+# (twice) when we are just looking for a single {.
+#   s/{/(?P</g
+#   s/*}/>.*)/g
+#   s/}/>.*?)>/g
+# Regex from: http://stackoverflow.com/questions/17644300/replacing-only-single-instances-of-a-character-with-python-regexp
 def format_to_re(format):
     if input_is_regex:
         f = re.sub('(?<!\{)\{(?!\{)', '(?P<', format)
