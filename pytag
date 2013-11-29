@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+import sys, os, eyeD3, re
+
+usage="""
+# Set tags from filename
+pytag -f "{track}. {artist} - {title}.mp3" file
+# Set tags from fixed strings and filename
+pytag "{p1}::Some Artist::2013::{filename}" "{album}::{artist}::{year}::{track} - {title}_junk.mp3" file
+# Rename file(s) from tags.
+pytag "{track:02} - {artist} - {title}.{ext}" file
+
+-f  Use filename as source>
+-r  Dest is a (python) regex. Optionally with '{key}' groups.
+-n  Dry run.
+-o  When renaming a file just print out the new filename. When changing
+    tags print out the changed tags in json format.
+
+Use another curly brace to escape a curly brace. "{{" -> "{".
+
+When changing tags groups in dest can be specified like '{key*}' to be
+made into greedy matches.
+
+TODO: Argparse and help texts and '--' handling.
+TODO: Use this regex module for **better unicode handling**: https://pypi.python.org/pypi/regex
+TODO: Allow a way to make groups greedy? Or just provide examples that fall
+back to using regexs (with the `-r` flag).
+"""
+
+stdout=False # Kinda like dry run but more machine usable?
+dry_run=False
+input_is_regex=False
+fnames=[]
+source=""
+dest=""
+
+for arg in sys.argv[1:]:
+    if arg == "-o":
+        stdout=True
+        continue
+    if arg == "-r":
+        input_is_regex=True
+        continue
+    if arg == "-f":
+        if source and not dest:
+            dest = source
+            source=""
+        if source:
+            print >>sys.stderr, "Fatal: Too many source specifications (`-f` "+\
+                "and two non-file positional arguments)."
+            sys.exit(1)
+        source="{filename}"
+        continue
+    if os.path.isfile(arg):
+        fnames.extend([arg])
+        continue
+    if fnames:
+        print >>sys.stderr, "Warning: Couldn't find file '%s'" % arg
+    else:
+        if not source:
+            source=arg
+        elif not dest:
+            dest=arg
+        else:
+            print >>sys.stderr, "Warning: Couldn't find file '%s'" % arg
+            print >>sys.stderr, "Warning: Or too many non-file positional arguments."
+
+if (not dest and not source) or not fnames:
+    # TODO: Print tags?
+    print >>sys.stderr, "Fatal: Nothing to do."
+    sys.exit(1)
+
+def tags_from_file(f):
+    # TODO: Can actually have multiple comments etc. See tagToRrc822 in
+    # eyeD3.tag.__file__
+    #eyeD3.tag.tagToRfc822(eyeD3.tag.Mp3AudioFile(f))
+    tag = eyeD3.tag.Mp3AudioFile(f).getTag()
+    gfuncs=[]
+    for t in dir(tag):
+        if t.startswith("get"): gfuncs.extend([t])
+    source_d={}
+    for t in gfuncs:
+        ret = getattr(tag, t)()
+        if isinstance(ret, basestring):
+            source_d[t[3:].lower()] = getattr(tag, t)()
+    if not source_d.get("track"):
+        source_d['track'] = tag.getTrackNum()[0]
+    if not source_d.get("genre"):
+        try:
+            source_d['genre'] = tag.getGenre().getName()
+        except:
+            pass
+    source_d['filename'] = os.path.basename(f)
+    source_d['pdir'] = os.path.abspath(os.path.dirname(f))
+    source_d['p1'] = os.path.basename(source_d['pdir'])
+    source_d['p2'] = os.path.dirname(source_d['p1'])
+    source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
+    return source_d
+
+# Python string.format() style syntax to non-greedy regexp with named capture
+# groups. See here for a less naive approach:
+# http://stackoverflow.com/questions/2654856/python-convert-format-string-to-regular-expression
+def format_to_re(format):
+    if input_is_regex:
+        f = re.sub('(?<!\{)\{(?!\{)', '(?P<', format)
+        f = re.sub('(?<!\})\*\}(?!\})', '>.*)', f)
+        f = re.sub('(?<!\})\}(?!\})', '>.*?)', f)
+    else:
+        f = re.sub('(?<!\\\{)\\\{(?!\\\{)', '(?P<', re.escape(format))
+        f = re.sub('(?<!\\\})\\\}(?!\\\})', '>.*?)', f)
+    return f
+
+# Format can be a regexp, optionally with '{key}' blocks in it which will be
+# turned into '(?P<key?.*?)'
+# Returns a dict with the matches
+def tags_from_string(fmt, src_s):
+    reg = format_to_re(fmt)
+    try:
+        return re.search(reg, src_s).groupdict()
+    except AttributeError:
+        return {}
+
+import json # for pretty printing
+for f in fnames:
+    tags=tags_from_file(f)
+    if not dest:
+        new_f = ""
+        try:
+            new_f = source.format(**tags)
+        except KeyError:
+            pass
+        if not new_f:
+            print >>sys.stderr, "Warning: Couldn't extract all tags in "+\
+                    "'%s' from %s" % (source, str(tags))
+            print >>sys.stderr, "Warning: Skipping '%s'" % f
+            continue
+        if stdout:
+            print new_f
+        else:
+            if True or dry_run:
+                print "TODO: Renaming file to:", new_f
+    else:
+        ret = tags_from_string(dest, source.format(**tags))
+        if not ret:
+            print >>sys.stderr, "Warning: Couldn't extract tags specified "+\
+                    "in '%s' from '%s'; skipping '%s'." % (
+                        dest, source.format(**tags), f)
+            continue
+        if stdout:
+            # TODO: rfc822 format is more cli friendly than json?
+            import json
+            print json.dumps(ret, indent=4)
+        else:
+            # Save tags to file.
+            # Something similar to tags_from_file:
+            # * Strip filename, pdir, p1, p2?
+            # * Turn track into int?
+            # * Special case genre and comment?
+            # * For everything look through dir(tag) to find
+            #   thing.lower()[3:].matches(key): thing(val).
+            if True or dry_run:
+                print "TODO: Setting tags:", json.dumps(ret, indent=4)
+
