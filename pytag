@@ -118,6 +118,30 @@ def tags_from_file(f):
     source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
     return source_d
 
+def tags_to_file(tags, f):
+    # Doesn't support comment and ...
+    if not tags or not f: return
+    tag = eyeD3.Tag()
+    tag.link(f)
+    gfuncs={}
+    for t in dir(tag):
+        if t.startswith("set"):
+            gfuncs[t[3:].lower()] = getattr(tag, t)
+
+    if not gfuncs.get("track"):
+        gfuncs['track'] = lambda x: tag.setTrackNum((x, tag.getTrackNum()[1]))
+    if not gfuncs.get("year"):
+        gfuncs['year'] = tag.setDate
+
+    for t in tags.keys():
+        if gfuncs.get(t):
+            gfuncs.get(t)(tags[t])
+        else:
+            print >>sys.stdeer, "Error: Don't know how to set tag '%s'" % t
+
+    tag.update()
+
+
 # Python string.format() style syntax to non-greedy regexp with named capture
 # groups. Crazy regex replace is so that {{ doesn't get converted
 # (twice) when we are just looking for a single {.
@@ -198,14 +222,8 @@ for f in fnames:
         if stdout:
             rfc822(ret)
         else:
-            # Save tags to file.
-            # Something similar to tags_from_file:
-            # * Strip filename, pdir, p1, p2?
-            # * Turn track into int?
-            # * Special case genre and comment?
-            # * For everything look through dir(tag) to find
-            #   thing.lower()[3:].matches(key): thing(val).
-            if True or dry_run:
-                print "TODO: Setting tags:"
+            if dry_run:
                 rfc822(ret)
+                sys.exit(0)
+            tags_to_file(ret, f)
 
