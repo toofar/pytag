@@ -154,6 +154,11 @@ def str_fmt(fmt, kwargs):
 import json # for pretty printing
 for f in fnames:
     tags=tags_from_file(f)
+    if (not source or list_tags or dry_run or stdout) and len(fnames) > 1:
+        print
+    if not source or list_tags:
+        print json.dumps(tags, indent=4)
+        continue
     if not dest:
         new_f = ""
         try:
