@@ -124,13 +124,18 @@ def tags_from_string(fmt, src_s):
     except AttributeError:
         return {}
 
+# This is to bypass the unpacking that happens with string.format
+def str_fmt(fmt, kwargs):
+    import string
+    return string.Formatter().vformat(fmt, None, kwargs)
+
 import json # for pretty printing
 for f in fnames:
     tags=tags_from_file(f)
     if not dest:
         new_f = ""
         try:
-            new_f = source.format(**tags)
+            new_f = str_fmt(source, tags)
         except KeyError:
             pass
         if not new_f:
@@ -144,11 +149,11 @@ for f in fnames:
             if True or dry_run:
                 print "TODO: Renaming file to:", new_f
     else:
-        ret = tags_from_string(dest, source.format(**tags))
+        ret = tags_from_string(dest, str_fmt(source, tags))
         if not ret:
             print >>sys.stderr, "Warning: Couldn't extract tags specified "+\
                     "in '%s' from '%s'; skipping '%s'." % (
-                        dest, source.format(**tags), f)
+                        dest, str_fmt(source, tags), f)
             continue
         if stdout:
             # TODO: rfc822 format is more cli friendly than json?
