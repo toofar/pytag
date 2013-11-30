@@ -151,13 +151,16 @@ def str_fmt(fmt, kwargs):
     import string
     return string.Formatter().vformat(fmt, None, kwargs)
 
-import json # for pretty printing
+def rfc822(d):
+    for k, v in d.items():
+        print "%s: %s" % (k, v)
+
 for f in fnames:
     tags=tags_from_file(f)
     if (not source or list_tags or dry_run or stdout) and len(fnames) > 1:
         print
     if not source or list_tags:
-        print json.dumps(tags, indent=4)
+        rfc822(tags)
         continue
     if not dest:
         new_f = ""
@@ -183,9 +186,7 @@ for f in fnames:
                         dest, str_fmt(source, tags), f)
             continue
         if stdout:
-            # TODO: rfc822 format is more cli friendly than json?
-            import json
-            print json.dumps(ret, indent=4)
+            rfc822(ret)
         else:
             # Save tags to file.
             # Something similar to tags_from_file:
@@ -195,5 +196,6 @@ for f in fnames:
             # * For everything look through dir(tag) to find
             #   thing.lower()[3:].matches(key): thing(val).
             if True or dry_run:
-                print "TODO: Setting tags:", json.dumps(ret, indent=4)
+                print "TODO: Setting tags:"
+                rfc822(ret)
 
