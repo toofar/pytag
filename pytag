@@ -176,8 +176,18 @@ for f in fnames:
         if stdout:
             print new_f
         else:
-            if True or dry_run:
-                print "TODO: Renaming file to:", new_f
+            if dry_run:
+                print "Renaming file to:", new_f
+                sys.exit(0)
+            import shutil
+            # path.join chokes on non unicode strings. I'm glad someone has
+            # handled the conversion for us. Even if it should be a
+            # class method.
+            ttag=eyeD3.Tag()
+            pdir=ttag.strToUnicode(tags['pdir'])
+            new_f=ttag.strToUnicode(new_f)
+            shutil.move(os.path.join(pdir, ttag.strToUnicode(tags['filename'])),
+                        os.path.join(pdir, new_f))
     else:
         ret = tags_from_string(dest, str_fmt(source, tags))
         if not ret:
