@@ -69,6 +69,29 @@ if (not dest and not source) or not fnames:
     print >>sys.stderr, "Fatal: Nothing to do."
     sys.exit(1)
 
+# Automatically generates some values that can be used in the `dest`
+# format string.
+# Currently just gets the path segments p1, p2 etc from `pdir` as
+# needed.
+class DynDict(dict):
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except:
+            return default
+    def __getitem__(self, key):
+        try:
+            if key.startswith('p') and int(key[1:]):
+                l=int(key[1:])-1
+                p=dict.__getitem__(self,"pdir")
+                while l>0:
+                    p=os.path.split(p)[0]
+                    l=l-1
+                return os.path.split(p)[1]
+        except:
+            pass
+        return dict.__getitem__(self,key)
+
 def tags_from_file(f):
     # TODO: Can actually have multiple comments etc. See tagToRrc822 in
     # eyeD3.tag.__file__
@@ -77,7 +100,8 @@ def tags_from_file(f):
     gfuncs=[]
     for t in dir(tag):
         if t.startswith("get"): gfuncs.extend([t])
-    source_d={}
+
+    source_d=DynDict()
     for t in gfuncs:
         ret = getattr(tag, t)()
         if isinstance(ret, basestring):
@@ -91,8 +115,6 @@ def tags_from_file(f):
             pass
     source_d['filename'] = os.path.basename(f)
     source_d['pdir'] = os.path.abspath(os.path.dirname(f))
-    source_d['p1'] = os.path.basename(source_d['pdir'])
-    source_d['p2'] = os.path.dirname(source_d['p1'])
     source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
     return source_d
 
