@@ -3,7 +3,11 @@ import sys, os, eyeD3, re
 
 todo="""
 TODO: Use this regex module for **better unicode handling**: https://pypi.python.org/pypi/regex
-TODO: More options in dest for getting substrings etc (handle graphemes!).
+TODO: More options in dest for getting substrings etc (handle
+graphemes!). So you can do like {filename:s/"//g:}. Or maybe
+{title:0:-3:}.
+TODO: When listing tags make it so you can select or filter for certain
+tags without having to pipe through grep in a sepearate step.
 """
 
 usage="""
