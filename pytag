@@ -136,15 +136,22 @@ def tags_from_file(f):
     # TODO: Can actually have multiple comments etc. See tagToRrc822 in
     # eyeD3.tag.__file__
     #eyeD3.tag.tagToRfc822(eyeD3.tag.Mp3AudioFile(f))
+
+    source_d=DynDict()
+
+    # Some non-tags that can be used in the `dest` format string.
+    source_d['filename'] = os.path.basename(f)
+    source_d['pdir'] = os.path.abspath(os.path.dirname(f))
+    source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
+
     tag = eyeD3.Tag()
     if not tag.link(f):
-        return {}
+        return source_d
 
     gfuncs=[]
     for t in dir(tag):
         if t.startswith("get"): gfuncs.extend([t])
 
-    source_d=DynDict()
     for t in gfuncs:
         try:
             ret = getattr(tag, t)()
@@ -159,18 +166,18 @@ def tags_from_file(f):
             source_d['genre'] = tag.getGenre().getName()
         except:
             pass
-
-    # Some non-tags that can be used in the `dest` format string.
-    source_d['filename'] = os.path.basename(f)
-    source_d['pdir'] = os.path.abspath(os.path.dirname(f))
-    source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
     return source_d
 
 def tags_to_file(tags, f):
     # Doesn't support comment and ...
     if not tags or not f: return
     tag = eyeD3.Tag()
-    tag.link(f)
+    if not tag.link(f):
+        # New tag. ED3_ANY_VERSION defaults to ID3_DEFAULT_VERSION set in
+        # eyeD3.__init__.py to ID3_V2_4. Presumably it will track the
+        # newest/recommended version.
+        tag = eyeD3.Tag(f)
+        tag.header.setVersion(eyeD3.ID3_ANY_VERSION)
     gfuncs={}
     for t in dir(tag):
         if t.startswith("set"):
