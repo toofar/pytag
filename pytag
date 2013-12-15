@@ -8,6 +8,7 @@ graphemes!). So you can do like {filename:s/"//g:}. Or maybe
 {title:0:-3:}.
 TODO: When listing tags make it so you can select or filter for certain
 tags without having to pipe through grep in a sepearate step.
+TODO: Maybe have some mode where you can edit filenames/tags in an editor.
 """
 
 usage="""
