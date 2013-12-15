@@ -217,6 +217,7 @@ def format_to_re(format):
         f = re.sub('(?<!\\\{)\\\{(?!\\\{)', '(?P<', re.escape(format))
         f = re.sub('(?<!\\\})\\\\\*\\\}(?!\\\})', '>.*)', f)
         f = re.sub('(?<!\\\})\\\}(?!\\\})', '>.*?)', f)
+        f = "^"+f+"$" #only necasy when form is something like "{year}"?
     return f
 
 # Format can be a regexp, optionally with '{key}' blocks in it which will be
