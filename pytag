@@ -150,7 +150,10 @@ def tags_from_file(f):
     source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
 
     tag = eyeD3.Tag()
-    if not tag.link(f):
+    try:
+        if not tag.link(f):
+            return source_d
+    except eyeD3.tag.TagException, e:
         return source_d
 
     gfuncs=[]
@@ -177,10 +180,14 @@ def tags_to_file(tags, f):
     # Doesn't support comment and ...
     if not tags or not f: return
     tag = eyeD3.Tag()
-    if not tag.link(f):
-        # New tag. ED3_ANY_VERSION defaults to ID3_DEFAULT_VERSION set in
-        # eyeD3.__init__.py to ID3_V2_4. Presumably it will track the
-        # newest/recommended version.
+    try:
+        if not tag.link(f):
+            # New tag. ED3_ANY_VERSION defaults to ID3_DEFAULT_VERSION set in
+            # eyeD3.__init__.py to ID3_V2_4. Presumably it will track the
+            # newest/recommended version.
+            tag = eyeD3.Tag(f)
+            tag.header.setVersion(eyeD3.ID3_ANY_VERSION)
+    except eyeD3.tag.TagException, e:
         tag = eyeD3.Tag(f)
         tag.header.setVersion(eyeD3.ID3_ANY_VERSION)
     gfuncs={}
@@ -199,7 +206,16 @@ def tags_to_file(tags, f):
         else:
             print >>sys.stderr, "Error: Don't know how to set tag '%s'" % t
 
-    tag.update()
+    try:
+        tag.setVersion(eyeD3.ID3_V2_4)
+        tag.setTextEncoding(eyeD3.UTF_8_ENCODING)
+        tag.update()
+    except eyeD3.tag.TagException, e:
+        print >>sys.stderr, "Couldn't update file "+f
+        print >>sys.stderr, e
+    except UnicodeEncodeError, e:
+        print >>sys.stderr, "Couldn't update file "+f
+        print >>sys.stderr, e
 
 
 # Python string.format() style syntax to non-greedy regexp with named capture
