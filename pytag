@@ -206,6 +206,9 @@ def tags_to_file(tags, f):
 
     for t in tags.keys():
         if gfuncs.get(t):
+            if t == 'genre':
+                # Genre only accepts str instead of basestring ...
+                tags[t] = str(tags[t])
             gfuncs.get(t)(tags[t])
         else:
             print >>sys.stderr, "Error: Don't know how to set tag '%s'" % t
