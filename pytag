@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-import sys, os, eyeD3, re
+import sys, os, eyeD3, re, string
 
 todo="""
 TODO: Use this regex module for **better unicode handling**: https://pypi.python.org/pypi/regex
 TODO: More options in dest for getting substrings etc (handle
 graphemes!). So you can do like {filename:s/"//g:}. Or maybe
-{title:0:-3:}. And {track:r[0-9][0-9]:}.
+{title:0:-3:}. And {track:r[0-9][0-9]:}. See around line 332 where the
+mods dict is populated.
 TODO: When listing tags make it so you can select or filter for certain
 tags without having to pipe through grep in a sepearate step.
 TODO: Maybe have some mode where you can edit filenames/tags in an editor.
@@ -38,16 +39,22 @@ Usage:
         pdir      The dirname of the absolute path to the file.
         p1        The parent directory of the file.
         p2..N     The Nth parent directory of the file.
-    Use the -l argument to so all available ones for a file (except for
+    Use the -l argument to see all available ones for a file (except for
     the pN key which are dynamiccaly generated).
 
     The dest argument is used to set tags from match expressions or to
     rename the file to the specifed string (with the same keys available
-    as specifed for source). Additionally to source you can suffix a
-    keyname with an asterix to specify a greedy match (eg "{track*}").
-    You can also, with the -r flag, pass a valid python regex. It can
-    still have curly-brace delimited keys in it and name match groups
-    are matched to tags to set.
+    as specifed for source). Additionally to what was described above
+    for source you can suffix a keyname with an asterix to specify a
+    greedy match (eg "{track*}"). You can also, with the -r flag, pass a
+    valid python regex. It can still have curly-brace delimited keys in
+    it and name match groups are matched to tags to set.
+
+    There are is is one other transform available in dest right now eg
+    "{track^}" (or {track*^} if you want it greedy) will turn all
+    underscores to spaces and sentence case tag. Eg.
+
+        like_a_stone_(live)_(bonus_track) => Like a Stone (Live) (Bonus Track)
 
 Examples:
 
@@ -211,7 +218,7 @@ def tags_to_file(tags, f):
                 tags[t] = str(tags[t])
             gfuncs.get(t)(tags[t])
         else:
-            print >>sys.stderr, "Error: Don't know how to set tag '%s'" % t
+            print >>sys.stderr, "Warning: Don't know how to set tag '%s'" % t
 
     try:
         tag.setVersion(eyeD3.ID3_V2_4)
@@ -241,7 +248,7 @@ def format_to_re(format):
         f = re.sub('(?<!\\\{)\\\{(?!\\\{)', '(?P<', re.escape(format))
         f = re.sub('(?<!\\\})\\\\\*\\\}(?!\\\})', '>.*)', f)
         f = re.sub('(?<!\\\})\\\}(?!\\\})', '>.*?)', f)
-        f = "^"+f+"$" #only necasy when form is something like "{year}"?
+        f = "^"+f+"$" #only necessary when form is something like "{year}"?
     return f
 
 # Format can be a regexp, optionally with '{key}' blocks in it which will be
@@ -254,9 +261,29 @@ def tags_from_string(fmt, src_s):
     except AttributeError:
         return {}
 
+# Sentance case s. exceptions are the words not to capitalise, by default the
+# articles.
+def title_except(s, exceptions=['a', 'an', 'of', 'the', 'is']):
+    # Pull the word seperators out of the word list
+    seps = re.findall(r'\W+', s)
+    word_list = re.findall(r'\w+', s)
+
+    # Always capitalise the first letter.
+    final = [word_list[0].capitalize()]
+    for word in word_list[1:]:
+       final.append(word in exceptions and word or word.capitalize())
+
+    # Make zip happy if there was not a word boundary on the end of the string.
+    if len(word_list) > len(seps):
+        seps += ['']
+    return "".join(sum(zip(final, seps), ()))
+
+def uppercase(s):
+    # use re.sub(..., " ", s) if we need to replace more chars
+    return title_except(s.replace("_"," "))
+
 # This is to bypass the unpacking that happens with string.format
 def str_fmt(fmt, kwargs):
-    import string
     return string.Formatter().vformat(unicode(fmt.decode('utf-8')), None, kwargs)
 
 def set_output_encoding(encoding='utf-8'):
@@ -278,6 +305,43 @@ set_output_encoding()
 def rfc822(d):
     for k, v in d.items():
         print "%s: %s" % (k, v)
+
+modifiers = {
+    '^' : uppercase,
+}
+
+# Pull modification directives out of the tag names before passing them
+# to re.
+# string.Formatter.parse returns an iterator of tuples of each format spec and
+# any preceding text. So each block that it parses will look like this
+# (all parts are optional of course):
+#    "literal text {field_name!conversion:format_spec}"
+# So thats the way we put it back together again afterwards too.
+# The actual modifications are all performed right before we write the tags
+# and/or print to stdout for each file.
+# TODO: Maybe modifiers values should be a tuple with a description element?
+# TODO: Maybe we should make mods values be able to be a list? I guess you
+# could always do it in multiple passes anyway.
+new_dest=""
+mods={}
+for literal_text, field_name, format_spec, conversion in \
+        string.Formatter().parse(dest):
+    if literal_text:
+        new_dest+=literal_text
+    if field_name:
+        m=field_name[-1]
+        if m == '^':
+            field_name=field_name[0:-1]
+            if field_name[-1] in ['*']:
+                mods[field_name[0:-1]]=m
+            else:
+                mods[field_name]=m
+            #else if ':' in format_spec...
+        new_dest+='{'+field_name
+        if conversion: new_dest+='!'+conversion
+        if format_spec: new_dest+=':'+format_spec
+        new_dest+='}'
+if new_dest: dest=new_dest
 
 for f in fnames:
     f=f.decode('utf-8')
@@ -330,6 +394,11 @@ for f in fnames:
                 "specified in '%s' from '%s'; skipping '%s'." % (
                             dest, tags, f)
             continue
+
+        if mods:
+            for tag, mod in mods.iteritems():
+                if mod in modifiers: ret[tag]=modifiers[mod](ret[tag])
+
         if stdout:
             rfc822(ret)
         else:
