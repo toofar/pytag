@@ -121,7 +121,11 @@ if not fnames:
 class DynDict(dict):
     def get(self, key, default=None):
         try:
-            return self.__getitem__(key)
+            ret = self.__getitem__(key)
+            if isinstance(ret, str):
+                return unicode(ret)
+            else:
+                return ret
         except:
             return default
     def __getitem__(self, key):
@@ -250,13 +254,30 @@ def tags_from_string(fmt, src_s):
 # This is to bypass the unpacking that happens with string.format
 def str_fmt(fmt, kwargs):
     import string
-    return string.Formatter().vformat(fmt, None, kwargs)
+    return string.Formatter().vformat(unicode(fmt.decode('utf-8')), None, kwargs)
+
+def set_output_encoding(encoding='utf-8'):
+    import sys
+    import codecs
+    '''When piping to the terminal, python knows the encoding needed, and
+       sets it automatically. But when piping to another program (for example,
+       | less), python can not check the output encoding. In that case, it
+       is None. What I am doing here is to catch this situation for both
+       stdout and stderr and force the encoding'''
+    current = sys.stdout.encoding
+    if current is None :
+        sys.stdout = codecs.getwriter(encoding)(sys.stdout)
+    current = sys.stderr.encoding
+    if current is None :
+        sys.stderr = codecs.getwriter(encoding)(sys.stderr)
+set_output_encoding()
 
 def rfc822(d):
     for k, v in d.items():
         print "%s: %s" % (k, v)
 
 for f in fnames:
+    f=f.decode('utf-8')
     tags=tags_from_file(f)
     if (not source or list_tags or dry_run or stdout) and len(fnames) > 1:
         print
