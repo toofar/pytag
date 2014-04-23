@@ -290,11 +290,21 @@ for f in fnames:
             shutil.move(os.path.join(pdir, ttag.strToUnicode(tags['filename'])),
                         os.path.join(pdir, new_f))
     else:
-        ret = tags_from_string(dest, str_fmt(source, tags))
+
+        ret=""
+        try:
+            ret = tags_from_string(dest, str_fmt(source, tags))
+        except:
+            pass
         if not ret:
-            print >>sys.stderr, "Warning: Couldn't extract tags specified "+\
-                    "in '%s' from '%s'; skipping '%s'." % (
-                        dest, str_fmt(source, tags), f)
+            try:
+                print >>sys.stderr, "Warning: Couldn't extract tags "+\
+                "specified in '%s' from '%s'; skipping '%s'." % (
+                            dest, str_fmt(source, tags), f)
+            except KeyError:
+                print >>sys.stderr, "Warning: Couldn't extract tags "+\
+                "specified in '%s' from '%s'; skipping '%s'." % (
+                            dest, tags, f)
             continue
         if stdout:
             rfc822(ret)
