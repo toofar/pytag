@@ -263,7 +263,12 @@ def tags_from_string(fmt, src_s):
 
 # Sentance case s. exceptions are the words not to capitalise, by default the
 # articles.
+# TODO: This can be as complex as you like:
+#    http://forums.mp3tag.de/index.php?showtopic=13185&hl=grammartron
 def title_except(s, exceptions=['a', 'an', 'of', 'the', 'is']):
+    s = s.strip()
+    s = re.sub(r'\s+', ' ', s)
+
     # Pull the word seperators out of the word list
     seps = re.findall(r'\W+', s)
     word_list = re.findall(r'\w+', s)
