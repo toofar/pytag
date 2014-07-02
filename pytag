@@ -419,6 +419,6 @@ for f in fnames:
         else:
             if dry_run:
                 rfc822(ret)
-                sys.exit(0)
+                continue
             tags_to_file(ret, f)
 
