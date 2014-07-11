@@ -267,7 +267,7 @@ def tags_from_string(fmt, src_s):
 # articles.
 # TODO: This can be as complex as you like:
 #    http://forums.mp3tag.de/index.php?showtopic=13185&hl=grammartron
-def title_except(s, exceptions=['a', 'an', 'of', 'the', 'is']):
+def title_except(s, exceptions=['a', 'an', 'of', 'the', 'is', 'and']):
     s = s.strip()
     s = re.sub(r'\s+', ' ', s)
 
