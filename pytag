@@ -212,6 +212,8 @@ def tags_to_file(tags, f):
         gfuncs['track'] = lambda x: tag.setTrackNum((x, tag.getTrackNum()[1]))
     if not gfuncs.get("year"):
         gfuncs['year'] = tag.setDate
+    if not gfuncs.get("comment"):
+        gfuncs['comment'] = tag.addComment
 
     for t in tags.keys():
         if gfuncs.get(t):
