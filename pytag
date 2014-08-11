@@ -269,7 +269,8 @@ def tags_from_string(fmt, src_s):
 # articles.
 # TODO: This can be as complex as you like:
 #    http://forums.mp3tag.de/index.php?showtopic=13185&hl=grammartron
-def title_except(s, exceptions=['a', 'an', 'of', 'the', 'is', 'and']):
+# Wiki says: http://en.wikipedia.org/wiki/Letter_case#Headings_and_publication_titles
+def title_except(s, exceptions=['s', 'a', 'an', 'of', 'the', 'is', 'and', 'de']):
     s = s.strip()
     s = re.sub(r'\s+', ' ', s)
 
