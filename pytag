@@ -362,7 +362,19 @@ for literal_text, field_name, format_spec, conversion in \
 if new_dest: dest=new_dest
 
 for f in fnames:
-    f=f.decode('utf-8')
+    try:
+        f=f.decode('utf-8')
+    except UnicodeDecodeError:
+        sys.stderr.write("Unicode error in filename: ")
+        for c in map(ord, f):
+            sys.stderr.write("%c" % (c<128 and c or '?'))
+        sys.stderr.write("\nTry\n")
+        sys.stderr.write("\tfor i in *;do echo \"$i\" | iconv -f"
+                         " 'ISO-8859-1' -t 'utf-8' | xargs -d'\n' -n1"
+                         " mv \"$i\" ;done\n")
+        sys.stderr.write("or use`ls | chardet` to"
+                         " guess charset\n")
+        continue
     tags=tags_from_file(f)
     if (not source or list_tags or dry_run or stdout) and len(fnames) > 1:
         print
