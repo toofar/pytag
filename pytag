@@ -214,6 +214,21 @@ def tags_to_file(tags, f):
         gfuncs['year'] = tag.setDate
     if not gfuncs.get("comment"):
         gfuncs['comment'] = tag.addComment
+    if not gfuncs.get("filename"):
+        def myrename(newname):
+            if not newname:
+                os.unlink(tag.linkedFile.name)
+            else:
+                dirname = os.path.dirname(tag.linkedFile.name)
+                if not dirname: dirname = '.'
+                newpath = dirname + os.sep + newname
+                ext = os.path.splitext(f)[1].lstrip('.')
+                if tag.linkedFile.name[-len(ext):] != ext:
+                    newpath += ext
+                os.rename(tag.linkedFile.name, newpath)
+                tag.linkedFile.name = newpath
+        tag.myrename = myrename
+        gfuncs['filename'] = tag.myrename
 
     for t in tags.keys():
         if gfuncs.get(t):
