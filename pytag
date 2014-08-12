@@ -444,7 +444,7 @@ for f in fnames:
         else:
             if dry_run:
                 print "Renaming file to:", new_f
-                sys.exit(0)
+                continue
             import shutil
             # path.join chokes on non unicode strings. I'm glad someone has
             # handled the conversion for us. Even if it should be a
