@@ -291,13 +291,14 @@ def tags_to_file(tags, f):
 # Regex from: http://stackoverflow.com/questions/17644300/replacing-only-single-instances-of-a-character-with-python-regexp
 def format_to_re(format):
     if input_is_regex:
-        f = re.sub('(?<!\{)\{(?!\{)', '(?P<', format)
-        f = re.sub('(?<!\})\*\}(?!\})', '>.*)', f)
-        f = re.sub('(?<!\})\}(?!\})', '>.*?)', f)
+        f = re.sub('(?<!\{)\{(?!\{)', '(?P<', format, re.UNICODE)
+        f = re.sub('(?<!\})\*\}(?!\})', '>.*)', f, re.UNICODE)
+        f = re.sub('(?<!\})\}(?!\})', '>.*?)', f, re.UNICODE)
     else:
-        f = re.sub('(?<!\\\{)\\\{(?!\\\{)', '(?P<', re.escape(format))
-        f = re.sub('(?<!\\\})\\\\\*\\\}(?!\\\})', '>.*)', f)
-        f = re.sub('(?<!\\\})\\\}(?!\\\})', '>.*?)', f)
+        f = re.sub('(?<!\\\{)\\\{(?!\\\{)', '(?P<', re.escape(format),
+                   re.UNICODE)
+        f = re.sub('(?<!\\\})\\\\\*\\\}(?!\\\})', '>.*)', f, re.UNICODE)
+        f = re.sub('(?<!\\\})\\\}(?!\\\})', '>.*?)', f, re.UNICODE)
         f = "^"+f+"$" #only necessary when form is something like "{year}"?
     return f
 
@@ -307,7 +308,7 @@ def format_to_re(format):
 def tags_from_string(fmt, src_s):
     reg = format_to_re(fmt)
     try:
-        return re.search(reg, src_s).groupdict()
+        return re.search(reg, src_s, re.UNICODE).groupdict()
     except AttributeError:
         return {}
 
@@ -320,11 +321,11 @@ def tags_from_string(fmt, src_s):
 # http://grammar.about.com/od/tz/g/Title-Case.htm
 def title_except(s, exceptions=['ve', 're', 'll', 'd', 's', 't', 'm', 'a', 'n', 'an', 'of', 'the', 'is', 'and', 'de']):
     s = s.strip()
-    s = re.sub(r'\s+', ' ', s)
+    s = re.sub(r'\s+', ' ', s, re.UNICODE)
 
     # Pull the word seperators out of the word list
-    seps = re.findall(r'\W+', s)
-    word_list = re.findall(r'\w+', s)
+    seps = re.findall(r'\W+', s, re.UNICODE)
+    word_list = re.findall(r'\w+', s, re.UNICODE)
 
     # Always capitalise the first letter.
     final = [word_list[0].capitalize()]
@@ -338,7 +339,7 @@ def title_except(s, exceptions=['ve', 're', 'll', 'd', 's', 't', 'm', 'a', 'n', 
 
 def uppercase(s):
     # use re.sub(..., " ", s) if we need to replace more chars
-    return title_except(s.replace("_"," "))
+    return title_except(s.replace("_"," ", re.UNICODE))
 
 # This is to bypass the unpacking that happens with string.format
 def str_fmt(fmt, kwargs):
