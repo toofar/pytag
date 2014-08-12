@@ -88,6 +88,17 @@ parser.add_argument("-o", "--stdout", action='store_true', help=
 parser.add_argument("-l", "--list", action='store_true', help=
                     "Just print the tags from the file (plus a couple extra) "+\
                     "in rfc822 format.")
+parser.add_argument('-e','--editor', help='Open (expanded) dest string(s) '+
+                    'an editor before applying to dest. Default if no source '+
+                    'is specified is dest. Default for source and dest if '+
+                    'neither are specified is '+
+                    """{filename}::{album}::{track}::{artist}::{title}.
+                    You can specify arguments to the external program
+                    (like sed) with shell quoting. Prefixing the command
+                    name with \'-\' will use stdin and stdout otherwise
+                    a file to operate on will be passed as the final
+                    argument.""",
+                    metavar='myeditor', nargs='?', default='default')
 parser.add_argument("source", nargs='?')
 parser.add_argument("dest", nargs='?')
 parser.add_argument("file", nargs='*', help="The file(s) to operate on.")
@@ -102,6 +113,20 @@ source=""
 if args.f:
     source = "{filename}"
 dest=""
+
+EDITOR=os.environ.get('EDITOR','editor')
+if args.editor != 'default':
+    if args.editor:
+        if os.path.splitext(args.editor)[1] or len(args.editor.split()) > 1:
+            print >>sys.stderr, ("Warning: The value of --editor doesn't "
+                                 "look like an executable, try using '--' "
+                                 "to seperate positional arguments from "
+                                 "options" )
+        EDITOR = args.editor
+    import tempfile
+    editf=tempfile.NamedTemporaryFile(delete=False, suffix='.pytag')
+else:
+    editf=None
 pos_args = filter(bool, [args.source, args.dest]+args.file)
 
 for arg in pos_args:
@@ -118,6 +143,10 @@ for arg in pos_args:
         else:
             print >>sys.stderr, "Warning: Couldn't find file '%s'" % arg
             print >>sys.stderr, "Warning: Or too many non-file positional arguments."
+if editf and not source:
+    source="{filename}::{album}::{track}::{artist}::{title}"
+if editf and not dest:
+    dest=source
 
 if not fnames:
     print >>sys.stderr, "Fatal: Nothing to do."
@@ -146,6 +175,8 @@ class DynDict(dict):
                     p=os.path.split(p)[0]
                     l=l-1
                 return os.path.split(p)[1]
+            if key.startswith('junk') and int(key[4:]):
+                return None
         except:
             pass
         return dict.__getitem__(self,key)
@@ -448,9 +479,101 @@ for f in fnames:
 
         if stdout:
             rfc822(ret)
+        elif editf:
+            try:
+                editf.write(str_fmt(dest, DynDict(ret)).encode('utf-8'))
+                editf.write('\n')
+            except KeyError:
+                print >>sys.stderr, "Warning: Couldn't extract tags "+\
+                "specified in '%s' from '%s'; skipping '%s'." % (
+                            dest, tags, f)
+                continue
         else:
             if dry_run:
                 rfc822(ret)
                 continue
             tags_to_file(ret, f)
 
+if editf:
+    import subprocess, shlex
+    editf.write("#source: ")
+    editf.write(source)
+    editf.write('\n')
+    editf.write("#matches: ")
+    editf.write(dest)
+    editf.write('\n')
+    editf.flush()
+    editf.seek(0)
+
+    if EDITOR[0] == '-':
+        pipe=True
+        EDITOR=shlex.split(EDITOR[1:])
+        IN=editf.file
+        OUT=subprocess.PIPE
+        ERR=sys.stderr
+    else:
+        pipe = False
+        EDITOR=shlex.split(EDITOR)+[editf.name]
+        IN=sys.stdin
+        OUT=sys.stdout
+        ERR=sys.stderr
+        editf.close()
+
+    proc = subprocess.Popen(EDITOR,stdin=IN,stdout=OUT,stderr=ERR)
+    # not checked, hopefully the file is empty or unchanged?
+    retcode = proc.wait()
+    dests = []
+    if pipe:
+        dests = proc.communicate()[0].splitlines()
+    else:
+        editf = open(editf.name, 'r')
+        temp_dests = editf.readlines()
+        # Strip trailing commented lines off.
+        for i,l in enumerate(reversed(temp_dests)):
+            if len(l.strip()) > 0 and l[0] != '#':
+                dests = temp_dests[0:-i]
+                break
+    editf.close()
+    if len(dests) == 0:
+        print >> sys.stderr, "Empty file, aborting."
+        os.unlink(editf.name)
+        sys.exit(0)
+    # For now assume (check?) there are the same number of lines and that the
+    # lines are in the same order. That way we can allow them to change
+    # anything and not mind. If they change order or delete some we will need
+    # to use heuristics. Although, what does that even mean?
+    # * Changing order may be useful whilst editing
+    # * Removing would equate to deleting which we support by setting
+    #   filename to empty anyway.
+    if len(fnames) != len(dests):
+        print >>sys.stderr, ("Error: %s: Different number of lines in the "
+                "file (%d) than on the command line (%d) aborting." % (
+                                                                  editf.name,
+                                                                  len(dests),
+                                                                  len(fnames)))
+        sys.exit(0)
+    os.unlink(editf.name)
+
+    for i,f in enumerate(fnames):
+        # Currently we are not allowing string formatting being re-inserted in
+        # the editor. we could but should refactor the mods stuff into
+        # tags_from_string.
+        ret=""
+        try:
+            ret = tags_from_string(dest, dests[i])
+        except:
+            pass
+        if not ret:
+            try:
+                print >>sys.stderr, "Warning: Couldn't extract tags "+\
+                "specified in '%s' from '%s'; skipping '%s'." % (
+                            dest, str_fmt(source, tags), f)
+            except KeyError:
+                print >>sys.stderr, "Warning: Couldn't extract tags "+\
+                "specified in '%s' from '%s'; skipping '%s'." % (
+                            dest, tags, f)
+            continue
+        if dry_run:
+            rfc822(ret)
+            continue
+        tags_to_file(ret, f)
