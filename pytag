@@ -423,7 +423,7 @@ for f in fnames:
                          " guess charset\n")
         continue
     tags=tags_from_file(f)
-    if (not source or list_tags or dry_run or stdout) and len(fnames) > 1:
+    if (not source or list_tags) and len(fnames) > 1:
         print
     if not source or list_tags:
         rfc822(tags)
