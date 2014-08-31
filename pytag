@@ -497,14 +497,6 @@ for f in fnames:
 
 if editf:
     import subprocess, shlex
-    editf.write("#source: ")
-    editf.write(source)
-    editf.write('\n')
-    editf.write("#matches: ")
-    editf.write(dest)
-    editf.write('\n')
-    editf.flush()
-    editf.seek(0)
 
     if EDITOR[0] == '-':
         pipe=True
@@ -512,12 +504,20 @@ if editf:
         IN=editf.file
         OUT=subprocess.PIPE
         ERR=sys.stderr
+        editf.flush()
+        editf.seek(0)
     else:
         pipe = False
         EDITOR=shlex.split(EDITOR)+[editf.name]
         IN=sys.stdin
         OUT=sys.stdout
         ERR=sys.stderr
+        editf.write("#source: ")
+        editf.write(source)
+        editf.write('\n')
+        editf.write("#matches: ")
+        editf.write(dest)
+        editf.write('\n')
         editf.close()
 
     proc = subprocess.Popen(EDITOR,stdin=IN,stdout=OUT,stderr=ERR)
@@ -533,6 +533,7 @@ if editf:
         for i,l in enumerate(reversed(temp_dests)):
             if len(l.strip()) > 0 and l[0] != '#':
                 dests = temp_dests[0:-i]
+                if i==0: dests = temp_dests[:]
                 break
     editf.close()
     if len(dests) == 0:
