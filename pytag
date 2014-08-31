@@ -117,7 +117,7 @@ dest=""
 EDITOR=os.environ.get('EDITOR','editor')
 if args.editor != 'default':
     if args.editor:
-        if os.path.splitext(args.editor)[1] or len(args.editor.split()) > 1:
+        if os.path.isfile(os.path.splitext(args.editor)[0]) or len(args.editor.split()) > 1:
             print >>sys.stderr, ("Warning: The value of --editor doesn't "
                                  "look like an executable, try using '--' "
                                  "to seperate positional arguments from "
