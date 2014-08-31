@@ -250,9 +250,10 @@ def tags_to_file(tags, f):
             if not newname:
                 os.unlink(tag.linkedFile.name)
             else:
-                dirname = os.path.dirname(tag.linkedFile.name)
+                ttag=eyeD3.Tag()
+                dirname = ttag.strToUnicode(os.path.dirname(tag.linkedFile.name))
                 if not dirname: dirname = '.'
-                newpath = dirname + os.sep + newname
+                newpath = dirname + os.sep + ttag.strToUnicode(newname)
                 ext = os.path.splitext(f)[1].lstrip('.')
                 if tag.linkedFile.name[-len(ext):] != ext:
                     newpath += ext
