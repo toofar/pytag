@@ -10,8 +10,7 @@ graphemes!). So you can do like {filename:s/"//g:}. Or maybe
 {title:0:-3:}. And {track:r[0-9][0-9]:}. See around line 332 where the
 mods dict is populated.
 TODO: When listing tags make it so you can select or filter for certain
-tags without having to pipe through grep in a sepearate step.
-TODO: Maybe have some mode where you can edit filenames/tags in an editor.
+tags without having to pipe through grep in a separate step.
 """
 
 usage="""
@@ -165,6 +164,8 @@ class DynDict(dict):
             else:
                 return ret
         except:
+            # Note that this is returned for non-present keys AND ambiguous
+            # abbreviations.
             return default
     def __getitem__(self, key):
         try:
@@ -179,7 +180,19 @@ class DynDict(dict):
                 return None
         except:
             pass
-        return dict.__getitem__(self,key)
+        if key in self:
+            return dict.__getitem__(self,key)
+
+        # Look for un-ambiguous leading substring matches. Aka abbreviations.
+        matches = [k for k in self if k.startswith(key)]
+        if len(matches) == 0:
+            return dict.__getitem__(self,key) #throws KeyError
+        elif len(matches) == 1:
+            return dict.__getitem__(self,matches[0])
+        else:
+            print >>sys.stderr, "Error: Ambiguous key '%s' matches: %s"% (key,
+                                                                       matches)
+            return dict.__getitem__(self,key) #throws KeyError
 
 def tags_from_file(f):
     # TODO: Can actually have multiple comments etc. See tagToRrc822 in
@@ -234,7 +247,7 @@ def tags_to_file(tags, f):
     except eyeD3.tag.TagException, e:
         tag = eyeD3.Tag(f)
         tag.header.setVersion(eyeD3.ID3_ANY_VERSION)
-    gfuncs={}
+    gfuncs=DynDict()
     for t in dir(tag):
         if t.startswith("set"):
             gfuncs[t[3:].lower()] = getattr(tag, t)
