@@ -224,9 +224,9 @@ def tags_from_file(f):
                 source_d[t[3:].lower()] = getattr(tag, t)()
         except:
             continue
-    if not source_d.get("track"):
+    if "track" not in source_d:
         source_d['track'] = tag.getTrackNum()[0]
-    if not source_d.get("genre"):
+    if "genre" not in source_d:
         try:
             source_d['genre'] = tag.getGenre().getName()
         except:
@@ -252,13 +252,13 @@ def tags_to_file(tags, f):
         if t.startswith("set"):
             gfuncs[t[3:].lower()] = getattr(tag, t)
 
-    if not gfuncs.get("track"):
+    if "track" not in gfuncs:
         gfuncs['track'] = lambda x: tag.setTrackNum((x, tag.getTrackNum()[1]))
-    if not gfuncs.get("year"):
+    if "year" not in gfuncs:
         gfuncs['year'] = tag.setDate
-    if not gfuncs.get("comment"):
+    if "comment" not in gfuncs:
         gfuncs['comment'] = tag.addComment
-    if not gfuncs.get("filename"):
+    if "filename" not in gfuncs:
         def myrename(newname):
             if not newname:
                 os.unlink(tag.linkedFile.name)
@@ -317,7 +317,7 @@ def format_to_re(format):
     return f
 
 # Format can be a regexp, optionally with '{key}' blocks in it which will be
-# turned into '(?P<key?.*?)'
+# turned into '(?P<key>.*?)'
 # Returns a dict with the matches
 def tags_from_string(fmt, src_s):
     reg = format_to_re(fmt)
