@@ -26,8 +26,8 @@ Usage:
     the string specified in source. Passing -f is equivalent to passing
     source as "{filename}".
 
-    In the fourth usage rename the file(s) to the string specified in
-    dest.
+    In the fourth usage print the string specified in dest with
+    substitutions applied.
 
     The source argument is used to provide a string that dest matches
     against to extract tags from. It can use the python curly-brace
@@ -44,8 +44,8 @@ Usage:
     the pN key which are dynamiccaly generated).
 
     The dest argument is used to set tags from match expressions or to
-    rename the file to the specifed string (with the same keys available
-    as specifed for source). Additionally to what was described above
+    rename the file to the specified string (with the same keys available
+    as specified for source). Additionally to what was described above
     for source you can suffix a keyname with an asterix to specify a
     greedy match (eg "{track*}"). You can also, with the -r flag, pass a
     valid python regex. It can still have curly-brace delimited keys in
@@ -66,7 +66,7 @@ Examples:
     pytag "{p1}::Big Joe::2013::{filename}" "{album}::{artist}::{year}::{track} {title}_junk.mp3" file
 
     # Rename file(s) from tags.
-    pytag "{track:02} - {artist} - {title}.{ext}" file
+    pytag "{track:02} - {artist} - {title}.{ext}" "{filename}" file
 """
 
 import argparse
@@ -453,21 +453,7 @@ for f in fnames:
                     "'%s' from %s" % (source, str(tags))
             print >>sys.stderr, "Warning: Skipping '%s'" % f
             continue
-        if stdout:
-            print new_f
-        else:
-            if dry_run:
-                print "Renaming file to:", new_f
-                continue
-            import shutil
-            # path.join chokes on non unicode strings. I'm glad someone has
-            # handled the conversion for us. Even if it should be a
-            # class method.
-            ttag=eyeD3.Tag()
-            pdir=ttag.strToUnicode(tags['pdir'])
-            new_f=ttag.strToUnicode(new_f)
-            shutil.move(os.path.join(pdir, ttag.strToUnicode(tags['filename'])),
-                        os.path.join(pdir, new_f))
+        print new_f
     else:
 
         ret=""
