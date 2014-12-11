@@ -254,6 +254,10 @@ def tags_to_file(tags, f):
 
     if "track" not in gfuncs:
         gfuncs['track'] = lambda x: tag.setTrackNum((x, tag.getTrackNum()[1]))
+        # remove tracknum because it makes abbreviations of track conflict.
+        # Could change track to be a func that tries split on '/' and if so set
+        # number of tracks to the second part.
+        del gfuncs['tracknum']
     if "year" not in gfuncs:
         gfuncs['year'] = tag.setDate
     if "comment" not in gfuncs:
