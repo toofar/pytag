@@ -337,7 +337,8 @@ def tags_from_string(fmt, src_s):
 # Wiki says: http://en.wikipedia.org/wiki/Letter_case#Headings_and_publication_titles
 # http://musicbrainz.org/doc/Style/Language/English
 # http://grammar.about.com/od/tz/g/Title-Case.htm
-def title_except(s, exceptions=['ve', 're', 'll', 'd', 's', 't', 'm', 'a', 'n', 'an', 'of', 'the', 'is', 'and', 'de']):
+def title_except(s, exceptions=['ve', 're', 'll', 'd', 's', 't', 'm', 'a', 'n',
+                                'an', 'of', 'the', 'is', 'and', 'de', 'to']):
     s = s.strip()
     s = re.sub(r'\s+', ' ', s, re.UNICODE)
 
@@ -353,7 +354,10 @@ def title_except(s, exceptions=['ve', 're', 'll', 'd', 's', 't', 'm', 'a', 'n', 
     # Make zip happy if there was not a word boundary on the end of the string.
     if len(word_list) > len(seps):
         seps += ['']
-    return "".join(sum(zip(final, seps), ()))
+    if s[0] == seps[0]:
+        return "".join(sum(zip(seps, final), ()))
+    else:
+        return "".join(sum(zip(final, seps), ()))
 
 def uppercase(s):
     # use re.sub(..., " ", s) if we need to replace more chars
