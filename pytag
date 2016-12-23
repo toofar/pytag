@@ -469,7 +469,7 @@ for f in fnames:
             ret = tags_from_string(dest, str_fmt(source, tags))
         except:
             pass
-        if not ret:
+        if not ret and not editf:
             try:
                 print >>sys.stderr, "Warning: Couldn't extract tags "+\
                 "specified in '%s' from '%s'; skipping '%s'." % (
@@ -490,7 +490,7 @@ for f in fnames:
             rfc822(ret)
         elif editf:
             try:
-                editf.write(str_fmt(dest, DynDict(ret)).encode('utf-8'))
+                editf.write(str_fmt(source, tags).encode('utf-8'))
                 editf.write('\n')
             except KeyError:
                 print >>sys.stderr, "Warning: Couldn't extract tags "+\
