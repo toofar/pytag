@@ -1,5 +1,29 @@
 #!/usr/bin/env python
-import sys, os, eyeD3, re, string, random
+import sys, os, re, string, random
+
+# Another layer of abstraction to deal with API changes to eyeD3.
+# Some redirections and variables for such here and some getattr and exception
+# checking for implementation differences thruoghout.
+try:
+    import eyeD3
+    from eyeD3 import log
+    from eyeD3.tag import TagException
+    from eyeD3.tag import Tag
+    consts = eyeD3
+    get_prefix = "get"
+    set_prefix = "set"
+    eyeD3_LOCAL_ENCODING = eyeD3.LOCAL_ENCODING
+except ImportError:
+    import eyed3
+    from eyed3 import log
+    from eyed3.id3.tag import TagException
+    from eyed3.id3.tag import Tag
+    Tag.link = Tag.parse
+    #Tag.linkedFile = Tag.file_info
+    consts = eyed3.id3
+    get_prefix = "_get"
+    set_prefix = "_set"
+    eyeD3_LOCAL_ENCODING = eyed3.LOCAL_ENCODING
 
 LICENSE="The zlib license: http://opensource.org/licenses/Zlib"
 
@@ -195,9 +219,8 @@ class DynDict(dict):
             return dict.__getitem__(self,key) #throws KeyError
 
 def tags_from_file(f):
-    # TODO: Can actually have multiple comments etc. See tagToRrc822 in
-    # eyeD3.tag.__file__
-    #eyeD3.tag.tagToRfc822(eyeD3.tag.Mp3AudioFile(f))
+    # TODO: Can actually have multiple comments etc. Could do something like
+    # {comment_blah blah}, maybe.
 
     source_d=DynDict()
 
@@ -206,71 +229,116 @@ def tags_from_file(f):
     source_d['pdir'] = os.path.abspath(os.path.dirname(f))
     source_d['ext'] = os.path.splitext(f)[1].lstrip('.')
 
-    tag = eyeD3.Tag()
+    tag = Tag()
     try:
         if not tag.link(f):
             return source_d
-    except eyeD3.tag.TagException, e:
+    except TagException, e:
         return source_d
 
     gfuncs=[]
     for t in dir(tag):
-        if t.startswith("get"): gfuncs.extend([t])
+        if t.startswith(get_prefix): gfuncs.extend([t])
 
     for t in gfuncs:
         try:
             ret = getattr(tag, t)()
             if isinstance(ret, basestring):
-                source_d[t[3:].lower()] = getattr(tag, t)()
+                source_d[t[len(get_prefix):].lower()] = getattr(tag, t)()
         except:
             continue
     if "track" not in source_d:
-        source_d['track'] = tag.getTrackNum()[0]
+        source_d['track'] = getattr(tag, get_prefix+"TrackNum")()[0]
     if "genre" not in source_d:
         try:
-            source_d['genre'] = tag.getGenre().getName()
+            g_ret = getattr(tag, get_prefix+"Genre")()
+            if getattr(g_ret, 'getName', None):
+                source_d['genre'] = g_ret.getName()
+            else:
+                source_d['genre'] = g_ret.name
         except:
             pass
+    if "year" not in source_d:
+        try:
+            # only for recent eyed3, older one has getYear()
+            source_d['year'] = str(tag.getBestDate())
+        except:
+            pass
+    if "comment" not in source_d:
+        # Only for new eyed3, old one has getComment
+        source_d['comment'] = tag.comments.get(u'').text
     return source_d
+
+# copied from old eyeD3, dunno if I need it
+def strToUnicode(s):
+   t = type(s);
+   if t != unicode and t == str:
+       s = unicode(s, eyeD3_LOCAL_ENCODING);
+   elif t != unicode and t != str:
+       raise TagException("Wrong type passed to strToUnicode: %s" % str(t));
+   return s;
 
 def tags_to_file(tags, f):
     # Doesn't support comment and ...
     if not tags or not f: return
-    tag = eyeD3.Tag()
+    tag = Tag()
     try:
         if not tag.link(f):
             # New tag. ED3_ANY_VERSION defaults to ID3_DEFAULT_VERSION set in
             # eyeD3.__init__.py to ID3_V2_4. Presumably it will track the
             # newest/recommended version.
-            tag = eyeD3.Tag(f)
-            tag.header.setVersion(eyeD3.ID3_ANY_VERSION)
-    except eyeD3.tag.TagException, e:
-        tag = eyeD3.Tag(f)
-        tag.header.setVersion(eyeD3.ID3_ANY_VERSION)
+            tag = Tag(f)
+            try:
+                tag.header.setVersion(consts.ID3_ANY_VERSION)
+            except AttributeError:
+                tag.header.version = consts.ID3_ANY_VERSION
+    except TagException, e:
+        tag = Tag(f)
+        try:
+            tag.header.setVersion(consts.ID3_ANY_VERSION)
+        except AttributeError:
+            tag.header.version = consts.ID3_ANY_VERSION
     gfuncs=DynDict()
     for t in dir(tag):
-        if t.startswith("set"):
-            gfuncs[t[3:].lower()] = getattr(tag, t)
+        if t.startswith(set_prefix):
+            gfuncs[t[len(set_prefix):].lower()] = getattr(tag, t)
 
     if "track" not in gfuncs:
-        gfuncs['track'] = lambda x: tag.setTrackNum((x, tag.getTrackNum()[1]))
+        def my_track_setter(s):
+            sett = getattr(tag, set_prefix+"TrackNum")
+            gett = getattr(tag, get_prefix+"TrackNum")
+            if '/' in s:
+                s_split = s.split('/', 1)
+                sett(s_split[0], s_split[1])
+            else:
+                sett(s_split[0], gett()[1])
+        gfuncs['track'] = my_track_setter
         # remove tracknum because it makes abbreviations of track conflict.
         # Could change track to be a func that tries split on '/' and if so set
         # number of tracks to the second part.
         del gfuncs['tracknum']
     if "year" not in gfuncs:
-        gfuncs['year'] = tag.setDate
+        if hasattr(tag, set_prefix+'ReleaseDate'):
+            gfuncs['year'] = getattr(tag, set_prefix+"ReleaseDate")
+            gfuncs['origyear'] = getattr(tag, set_prefix+"OrigReleaseDate")
+        else:
+            gfuncs['year'] = getattr(tag, set_prefix+"Date")
     if "comment" not in gfuncs:
-        gfuncs['comment'] = tag.addComment
+        if hasattr(tag, set_prefix+"Comment"):
+            gfuncs['comment'] = getattr(tag, set_prefix+"Comment")
+        else:
+            gfuncs['comment'] = lambda x: tag.comments.set(x, u'').text
     if "filename" not in gfuncs:
         def myrename(newname):
+            if not getattr(tag, 'linkedFile', None):
+                tag.linkedFile = tag.file_info
+
             if not newname:
                 os.unlink(tag.linkedFile.name)
             else:
-                ttag=eyeD3.Tag()
-                dirname = ttag.strToUnicode(os.path.dirname(tag.linkedFile.name))
+                dirname = strToUnicode(os.path.dirname(tag.linkedFile.name))
                 if not dirname: dirname = '.'
-                newpath = dirname + os.sep + ttag.strToUnicode(newname)
+                newpath = dirname + os.sep + strToUnicode(newname)
                 ext = os.path.splitext(f)[1].lstrip('.')
                 if tag.linkedFile.name[-len(ext):] != ext:
                     newpath += ext
@@ -284,15 +352,24 @@ def tags_to_file(tags, f):
             if t == 'genre':
                 # Genre only accepts str instead of basestring ...
                 tags[t] = str(tags[t])
-            gfuncs.get(t)(tags[t])
+            gfuncs.get(t)(unicode(tags[t]))
         else:
             print >>sys.stderr, "Warning: Don't know how to set tag '%s'" % t
 
     try:
-        tag.setVersion(eyeD3.ID3_V2_4)
-        tag.setTextEncoding(eyeD3.UTF_8_ENCODING)
-        tag.update()
-    except eyeD3.tag.TagException, e:
+        if getattr(tag, 'setVersion', None):
+            tag.setVersion(consts.ID3_V2_4)
+        else:
+            tag.version = consts.ID3_V2_4
+        #There isn't a setTextEncoding equivalent in the newer API but it
+        #looks like utf8 is the default for 2.4 anyway
+        if getattr(tag, 'setTextEncoding', None):
+            tag.setTextEncoding(consts.UTF_8_ENCODING)
+        if getattr(tag, 'update', None):
+            tag.update()
+        else:
+            tag.save(encoding='utf8')
+    except TagException, e:
         print >>sys.stderr, "Couldn't update file "+f
         print >>sys.stderr, e
     except UnicodeEncodeError, e:
@@ -430,6 +507,10 @@ for literal_text, field_name, format_spec, conversion in \
         new_dest+='}'
 if new_dest: dest=new_dest
 
+#Turn logging to ERROR while doing getting stuff. Turn back to WARNING when
+#writing to file.
+log.setLevel(40)
+
 for f in fnames:
     try:
         f=f.decode('utf-8')
@@ -501,6 +582,8 @@ for f in fnames:
             if dry_run:
                 rfc822(ret)
                 continue
+
+            log.setLevel(30)
             tags_to_file(ret, f)
 
 if editf:
@@ -586,4 +669,5 @@ if editf:
         if dry_run:
             rfc822(ret)
             continue
+        log.setLevel(30)
         tags_to_file(ret, f)
