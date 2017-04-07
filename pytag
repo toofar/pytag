@@ -4,6 +4,7 @@ import sys, os, re, string, random
 # Another layer of abstraction to deal with API changes to eyeD3.
 # Some redirections and variables for such here and some getattr and exception
 # checking for implementation differences thruoghout.
+# from 0.7 it eyed3 has info.VERSION_TUPLE too
 try:
     import eyeD3
     from eyeD3 import log
@@ -266,7 +267,10 @@ def tags_from_file(f):
             pass
     if "comment" not in source_d:
         # Only for new eyed3, old one has getComment
-        source_d['comment'] = tag.comments.get(u'').text
+        try:
+            source_d['comment'] = tag.comments.get(u'').text
+        except:
+            pass #NoneType has no attribute "text"
     return source_d
 
 # copied from old eyeD3, dunno if I need it
@@ -287,11 +291,16 @@ def tags_to_file(tags, f):
             # New tag. ED3_ANY_VERSION defaults to ID3_DEFAULT_VERSION set in
             # eyeD3.__init__.py to ID3_V2_4. Presumably it will track the
             # newest/recommended version.
-            tag = Tag(f)
             try:
-                tag.header.setVersion(consts.ID3_ANY_VERSION)
-            except AttributeError:
-                tag.header.version = consts.ID3_ANY_VERSION
+                tag = Tag(f)
+                try:
+                    tag.header.setVersion(consts.ID3_ANY_VERSION)
+                except AttributeError:
+                    tag.header.version = consts.ID3_ANY_VERSION
+            except TypeError:
+                # Looks like eyed3 change their API again for v0.7
+                tag = Tag()
+                tag.parse(f, consts.ID3_ANY_VERSION)
     except TagException, e:
         tag = Tag(f)
         try:
@@ -309,9 +318,9 @@ def tags_to_file(tags, f):
             gett = getattr(tag, get_prefix+"TrackNum")
             if '/' in s:
                 s_split = s.split('/', 1)
-                sett(s_split[0], s_split[1])
+                sett(s_split)
             else:
-                sett(s_split[0], gett()[1])
+                sett((s, gett()[1]))
         gfuncs['track'] = my_track_setter
         # remove tracknum because it makes abbreviations of track conflict.
         # Could change track to be a func that tries split on '/' and if so set
