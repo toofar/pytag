@@ -554,7 +554,7 @@ for f in fnames:
         print new_f
     else:
 
-        ret=""
+        ret={}
         try:
             ret = tags_from_string(dest, str_fmt(source, tags))
         except:
@@ -572,20 +572,23 @@ for f in fnames:
 
         if mods:
             for tag, mod in mods.iteritems():
-                if mod in modifiers: ret[tag]=modifiers[mod](ret[tag])
+                if mod in modifiers and ret: ret[tag]=modifiers[mod](ret[tag])
             for k, v in list(ret.iteritems()):
                 if v == None: del ret[k]
 
         if stdout:
             rfc822(ret)
         elif editf:
+            #TODO: Currently fails with mods in source... Just change
+            #source to dest until we can properly strip the mods
+            #out.
             try:
                 editf.write(str_fmt(source, tags).encode('utf-8'))
                 editf.write('\n')
             except KeyError:
                 print >>sys.stderr, "Warning: Couldn't extract tags "+\
                 "specified in '%s' from '%s'; skipping '%s'." % (
-                            dest, tags, f)
+                            source, tags, f)
                 continue
         else:
             if dry_run:
