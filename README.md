@@ -1,4 +1,4 @@
-Requires python2  mutagen and eyed3. Modeled off of the tag editor in Predixis
+Requires python3 and eyed3. Modeled off of the tag editor in Predixis
 Music Magic Mixer. That being the source to destination pattern matching
 thing.
 

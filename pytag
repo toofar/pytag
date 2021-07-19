@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys, os, re, string, random
 
 # Another layer of abstraction to deal with API changes to eyeD3.
@@ -7,7 +7,11 @@ import sys, os, re, string, random
 # from 0.7 it eyed3 has info.VERSION_TUPLE too
 try:
     import eyeD3
-    from eyeD3 import log
+    class MyObj(object):
+        def setLevel(self, level):
+            pass
+        pass
+    log = MyObj()
     from eyeD3.tag import TagException
     from eyeD3.tag import Tag
     consts = eyeD3
@@ -142,13 +146,15 @@ EDITOR=os.environ.get('EDITOR','editor')
 if args.editor != 'default':
     if args.editor:
         if os.path.isfile(os.path.splitext(args.editor)[0]) or len(args.editor.split()) > 1:
-            print >>sys.stderr, ("Warning: The value of --editor doesn't "
-                                 "look like an executable, try using '--' "
-                                 "to seperate positional arguments from "
-                                 "options" )
+            print("Warning: The value of --editor doesn't "
+                  "look like an executable, try using '--' "
+                  "to seperate positional arguments from "
+                  "options",
+                  file=sys.stderr,
+                 )
         EDITOR = args.editor
     import tempfile
-    editf=tempfile.NamedTemporaryFile(delete=False, suffix='.pytag')
+    editf=tempfile.NamedTemporaryFile(mode="w", delete=False, suffix='.pytag', encoding='utf-8')
 else:
     editf=None
 pos_args = filter(bool, [args.source, args.dest]+args.file)
@@ -158,22 +164,22 @@ for arg in pos_args:
         fnames.extend([arg])
         continue
     if fnames:
-        print >>sys.stderr, "Warning: Couldn't find file '%s'" % arg
+        print(f"Warning: Couldn't find file '{arg}'", file=sys.stderr)
     else:
         if not source:
             source=arg
         elif not dest:
             dest=arg
         else:
-            print >>sys.stderr, "Warning: Couldn't find file '%s'" % arg
-            print >>sys.stderr, "Warning: Or too many non-file positional arguments."
+            print(f"Warning: Couldn't find file '{arg}'", file=sys.stderr)
+            print("Warning: Or too many non-file positional arguments.", file=sys.stderr)
 if editf and not source:
     source="{filename}::{album}::{track}::{artist}::{title}"
 if editf and not dest:
     dest=source
 
 if not fnames:
-    print >>sys.stderr, "Fatal: Nothing to do."
+    print("Fatal: Nothing to do.", file=sys.stderr)
     sys.exit(1)
 
 # Automatically generates some values that can be used in the `dest`
@@ -215,8 +221,7 @@ class DynDict(dict):
         elif len(matches) == 1:
             return dict.__getitem__(self,matches[0])
         else:
-            print >>sys.stderr, "Error: Ambiguous key '%s' matches: %s"% (key,
-                                                                       matches)
+            print(f"Error: Ambiguous key '{key}' matches: {matches}", file=sys.stderr)
             return dict.__getitem__(self,key) #throws KeyError
 
 def tags_from_file(f):
@@ -234,7 +239,7 @@ def tags_from_file(f):
     try:
         if not tag.link(f):
             return source_d
-    except TagException, e:
+    except TagException as e:
         return source_d
 
     gfuncs=[]
@@ -301,7 +306,7 @@ def tags_to_file(tags, f):
                 # Looks like eyed3 change their API again for v0.7
                 tag = Tag()
                 tag.parse(f, consts.ID3_ANY_VERSION)
-    except TagException, e:
+    except TagException as e:
         tag = Tag(f)
         try:
             tag.header.setVersion(consts.ID3_ANY_VERSION)
@@ -361,9 +366,9 @@ def tags_to_file(tags, f):
             if t == 'genre':
                 # Genre only accepts str instead of basestring ...
                 tags[t] = str(tags[t])
-            gfuncs.get(t)(unicode(tags[t]))
+            gfuncs.get(t)(tags[t])
         else:
-            print >>sys.stderr, "Warning: Don't know how to set tag '%s'" % t
+            print(f"Warning: Don't know how to set tag '{t}'", file=sys.stderr)
 
     try:
         if getattr(tag, 'setVersion', None):
@@ -378,12 +383,9 @@ def tags_to_file(tags, f):
             tag.update()
         else:
             tag.save(encoding='utf8')
-    except TagException, e:
-        print >>sys.stderr, "Couldn't update file "+f
-        print >>sys.stderr, e
-    except UnicodeEncodeError, e:
-        print >>sys.stderr, "Couldn't update file "+f
-        print >>sys.stderr, e
+    except TagException, UnicodeEncodeError as e:
+        print(f"Couldn't update file {f}", file=sys.stderr)
+        print(e, file=sys.stderr)
 
 
 # Python string.format() style syntax to non-greedy regexp with named capture
@@ -451,7 +453,7 @@ def uppercase(s):
 
 # This is to bypass the unpacking that happens with string.format
 def str_fmt(fmt, kwargs):
-    return string.Formatter().vformat(unicode(fmt.decode('utf-8')), None, kwargs)
+    return string.Formatter().vformat(fmt, None, kwargs)
 
 def set_output_encoding(encoding='utf-8'):
     import sys
@@ -471,7 +473,7 @@ set_output_encoding()
 
 def rfc822(d):
     for k, v in d.items():
-        print "%s: %s" % (k, v)
+        print(f"{k}: {v}")
 
 modifiers = {
     '^' : uppercase,
@@ -521,19 +523,19 @@ if new_dest: dest=new_dest
 log.setLevel(40)
 
 for f in fnames:
-    try:
-        f=f.decode('utf-8')
-    except UnicodeDecodeError:
-        sys.stderr.write("Unicode error in filename: ")
-        for c in map(ord, f):
-            sys.stderr.write("%c" % (c<128 and c or '?'))
-        sys.stderr.write("\nTry\n")
-        sys.stderr.write("\tfor i in *;do echo \"$i\" | iconv -f"
-                         " 'ISO-8859-1' -t 'utf-8' | xargs -d'\n' -n1"
-                         " mv \"$i\" ;done\n")
-        sys.stderr.write("or use`ls | chardet` to"
-                         " guess charset\n")
-        continue
+    #try:
+    #    f=f.decode('utf-8')
+    #except UnicodeDecodeError:
+    #    sys.stderr.write("Unicode error in filename: ")
+    #    for c in map(ord, f):
+    #        sys.stderr.write("" + (c<128 and c or '?'))
+    #    sys.stderr.write("\nTry\n")
+    #    sys.stderr.write("\tfor i in *;do echo \"$i\" | iconv -f"
+    #                     " 'ISO-8859-1' -t 'utf-8' | xargs -d'\n' -n1"
+    #                     " mv \"$i\" ;done\n")
+    #    sys.stderr.write("or use`ls | chardet` to"
+    #                     " guess charset\n")
+    #    continue
     tags=tags_from_file(f)
     if (not source or list_tags) and len(fnames) > 1:
         print
@@ -547,11 +549,11 @@ for f in fnames:
         except KeyError:
             pass
         if not new_f:
-            print >>sys.stderr, "Warning: Couldn't extract all tags in "+\
-                    "'%s' from %s" % (source, str(tags))
-            print >>sys.stderr, "Warning: Skipping '%s'" % f
+            print("Warning: Couldn't extract all tags in "+\
+                    f"'{source}' from {tags}", file=sys.stderr)
+            print(f"Warning: Skipping '{f}'")
             continue
-        print new_f
+        print(new_f)
     else:
 
         ret={}
@@ -561,13 +563,11 @@ for f in fnames:
             pass
         if not ret and not editf:
             try:
-                print >>sys.stderr, "Warning: Couldn't extract tags "+\
-                "specified in '%s' from '%s'; skipping '%s'." % (
-                            dest, str_fmt(source, tags), f)
+                print("Warning: Couldn't extract tags "+\
+                f"specified in '{dest}' from '{str_fmt(source, tags)}'; skipping '{f}'.", file=sys.stderr)
             except KeyError:
-                print >>sys.stderr, "Warning: Couldn't extract tags "+\
-                "specified in '%s' from '%s'; skipping '%s'." % (
-                            dest, tags, f)
+                print("Warning: Couldn't extract tags "+\
+                f"specified in '{dest}' from '{tags}'; skipping '{f}'.", file=sys.stderr)
             continue
 
         if mods:
@@ -583,12 +583,12 @@ for f in fnames:
             #source to dest until we can properly strip the mods
             #out.
             try:
-                editf.write(str_fmt(source, tags).encode('utf-8'))
+                editf.write(str_fmt(source, tags))
                 editf.write('\n')
             except KeyError:
-                print >>sys.stderr, "Warning: Couldn't extract tags "+\
-                "specified in '%s' from '%s'; skipping '%s'." % (
-                            source, tags, f)
+                print("Warning: Couldn't extract tags "+\
+                f"specified in '{source}' from '{tags}'; skipping '{f}'.",
+                      file=sys.stderr)
                 continue
         else:
             if dry_run:
@@ -640,7 +640,7 @@ if editf:
                 break
     editf.close()
     if len(dests) == 0:
-        print >> sys.stderr, "Empty file, aborting."
+        print("Empty file, aborting.", file=sys.stderr)
         os.unlink(editf.name)
         sys.exit(0)
     # For now assume (check?) there are the same number of lines and that the
@@ -651,11 +651,8 @@ if editf:
     # * Removing would equate to deleting which we support by setting
     #   filename to empty anyway.
     if len(fnames) != len(dests):
-        print >>sys.stderr, ("Error: %s: Different number of lines in the "
-                "file (%d) than on the command line (%d) aborting." % (
-                                                                  editf.name,
-                                                                  len(dests),
-                                                                  len(fnames)))
+        print(f"Error: {editf.name}: Different number of lines in the "
+              f"file ({len(dests)}) than on the command line ({len(fnames)}) aborting.")
         sys.exit(0)
     os.unlink(editf.name)
 
@@ -670,13 +667,11 @@ if editf:
             pass
         if not ret:
             try:
-                print >>sys.stderr, "Warning: Couldn't extract tags "+\
-                "specified in '%s' from '%s'; skipping '%s'." % (
-                            dest, str_fmt(source, tags), f)
+                print("Warning: Couldn't extract tags "+\
+                f"specified in '{dest}' from '{str_fmt(source, tags)}'; skipping '{f}'.", file=sys.stderr)
             except KeyError:
-                print >>sys.stderr, "Warning: Couldn't extract tags "+\
-                "specified in '%s' from '%s'; skipping '%s'." % (
-                            dest, tags, f)
+                print("Warning: Couldn't extract tags "+\
+                f"specified in '{dest}' from '{tags}'; skipping '{f}'.", file=sys.stderr)
             continue
         if dry_run:
             rfc822(ret)
