@@ -249,7 +249,7 @@ def tags_from_file(f):
     for t in gfuncs:
         try:
             ret = getattr(tag, t)()
-            if isinstance(ret, basestring):
+            if isinstance(ret, str):
                 source_d[t[len(get_prefix):].lower()] = getattr(tag, t)()
         except:
             continue
@@ -277,15 +277,6 @@ def tags_from_file(f):
         except:
             pass #NoneType has no attribute "text"
     return source_d
-
-# copied from old eyeD3, dunno if I need it
-def strToUnicode(s):
-   t = type(s);
-   if t != unicode and t == str:
-       s = unicode(s, eyeD3_LOCAL_ENCODING);
-   elif t != unicode and t != str:
-       raise TagException("Wrong type passed to strToUnicode: %s" % str(t));
-   return s;
 
 def tags_to_file(tags, f):
     # Doesn't support comment and ...
@@ -350,9 +341,9 @@ def tags_to_file(tags, f):
             if not newname:
                 os.unlink(tag.linkedFile.name)
             else:
-                dirname = strToUnicode(os.path.dirname(tag.linkedFile.name))
+                dirname = os.path.dirname(tag.linkedFile.name)
                 if not dirname: dirname = '.'
-                newpath = dirname + os.sep + strToUnicode(newname)
+                newpath = dirname + os.sep + newname.replace('/', '_')
                 ext = os.path.splitext(f)[1].lstrip('.')
                 if tag.linkedFile.name[-len(ext):] != ext:
                     newpath += ext
@@ -383,7 +374,7 @@ def tags_to_file(tags, f):
             tag.update()
         else:
             tag.save(encoding='utf8')
-    except TagException, UnicodeEncodeError as e:
+    except (TagException, UnicodeEncodeError) as e:
         print(f"Couldn't update file {f}", file=sys.stderr)
         print(e, file=sys.stderr)
 
