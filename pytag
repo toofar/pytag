@@ -529,7 +529,7 @@ for f in fnames:
     #    continue
     tags=tags_from_file(f)
     if (not source or list_tags) and len(fnames) > 1:
-        print
+        print()
     if not source or list_tags:
         rfc822(tags)
         continue
@@ -562,9 +562,9 @@ for f in fnames:
             continue
 
         if mods:
-            for tag, mod in mods.iteritems():
+            for tag, mod in mods.items():
                 if mod in modifiers and ret: ret[tag]=modifiers[mod](ret[tag])
-            for k, v in list(ret.iteritems()):
+            for k, v in ret.items():
                 if v == None: del ret[k]
 
         if stdout:
